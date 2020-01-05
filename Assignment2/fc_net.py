@@ -85,9 +85,9 @@ class TwoLayerNet(object):
         W1, b1 = self.params['W1'], self.params['b1']
         W2, b2 = self.params['W2'], self.params['b2']
        
-        H,cache1 = affine_forward(X,W1,b1)
-        HR,chache2 = relu_forward(H)
-        scores,chache3 = affine_forward(HR,W2,b2)
+        H, cache1 = affine_forward(X, W1, b1)
+        HR, cache2 = relu_forward(H)
+        scores, cache3 = affine_forward(HR, W2, b2)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -108,14 +108,13 @@ class TwoLayerNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         loss, dscores = softmax_loss(scores, y)
-        da DW2,DB2 = affine_backward(dscores,(HR,self.params["W2"]))#the second 
-        #argument can be cache3
-        dz = relu_backward(da,H)
-        dx DW1,DB1 = affine_backward(da, (X,self.params["w1"]))# the second 
-        #argument can be cache1
+        da, dW2, db2 = affine_backward(dscores, cache3)
+        #argument can be cache3 or (HR,self.params["W2"])
+        dz = relu_backward(da ,HR)
+        dx, dW1, db1 = affine_backward(dz, cache1)
+        #argument can be cache1 or (X,self.params["W1"])
         
-        
-        loss += 0.5 * self.reg * (np.sum(W1**2) + np.sum(W2**2))
+        loss += 0.5 * self.reg * (np.sum(W1**2) + np.sum(W2**2)) 
         dW1 += self.reg * W1
         dW2 += self.reg * W2
 
@@ -186,20 +185,11 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to one and shift      #
         # parameters should be initialized to zero.                                #
         ############################################################################
-        passfor i in xrange(1, self.num_layers + 1):
-        W = weight_scale * np.random.randn(layer_dims[i - 1], layer_dims[i])
-        b = np.zeros(layer_dims[i])
+        dims = np.hstack((input_dim, hidden_dims, num_classes))
 
-        self.params['W' + str(i)] = W
-        self.params['b' + str(i)] = b
-
-        if is_hidden_layer(i, self.num_layers):
-        if self.use_batchnorm:
-        gamma = np.ones(layer_dims[i])
-        beta = np.zeros(layer_dims[i])
-
-        self.params['gamma' + str(i)] = gamma
-        self.params['beta' + str(i)] = beta
+        for i in range(self.num_layers):
+            self.params['W%d' % (i + 1)] = weight_scale * np.random.randn(dims[i], dims[i+1])
+            self.params['b%d' % (i + 1)] = np.zeros(dims[i+1])
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -262,28 +252,28 @@ class FullyConnectedNet(object):
         caches = []
         scores = X.copy()
 
-        for i in xrange(1, self.num_layers + 1):
+        for i in range(1, self.num_layers + 1):
             W = self.params['W' + str(i)]
             b = self.params['b' + str(i)]
 
-        scores, affine_c = affine_forward(scores, W, b)
-        caches.append(affine_c)
+            scores, affine_c = affine_forward(scores, W, b)
+            caches.append(affine_c)
 
-        if is_hidden_layer(i, self.num_layers):
-            if self.use_batchnorm:
-                gamma = self.params['gamma' + str(i)]
-                beta = self.params['beta' + str(i)]
-                bn_p = self.bn_params[i - 1]
+            if i < self.num_layers:
+                if self.use_batchnorm:
+                    gamma = self.params['gamma' + str(i)]
+                    beta = self.params['beta' + str(i)]
+                    bn_p = self.bn_params[i - 1]
 
-        scores, batchnorm_c = batchnorm_forward(scores, gamma, beta, bn_p)
-        caches.append(batchnorm_c)
+                    scores, batchnorm_c = batchnorm_forward(scores, gamma, beta, bn_p)
+                    caches.append(batchnorm_c)
 
-        scores, relu_cache = relu_forward(scores)
-        caches.append(relu_cache)
+                scores, relu_cache = relu_forward(scores)
+                caches.append(relu_cache)
 
-        if self.use_dropout:
-            scores, dropout_c = dropout_forward(scores, self.dropout_param)
-            caches.append(dropout_c)
+                if self.use_dropout:
+                    scores, dropout_c = dropout_forward(scores, self.dropout_param)
+                    caches.append(dropout_c)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -308,25 +298,25 @@ class FullyConnectedNet(object):
         ############################################################################
         loss, dscores = softmax_loss(scores, y)
 
-        for i in xrange(self.num_layers, 0, -1):
-            if is_hidden_layer(i, self.num_layers):
+        for i in range(self.num_layers, 0, -1):
+            if i < self.num_layers:
                 if self.use_dropout:
                     dscores = dropout_backward(dscores, caches.pop())
 
-        dscores  = relu_backward(dscores, caches.pop())
+                dscores  = relu_backward(dscores, caches.pop())
 
-        if self.use_batchnorm:
-            dscores, dgamma, dbeta = batchnorm_backward_alt(dscores, caches.pop())
+                if self.use_batchnorm:
+                    dscores, dgamma, dbeta = batchnorm_backward_alt(dscores, caches.pop())
 
-            grads['gamma' + str(i)] = dgamma
-            grads['beta' + str(i)] = dbeta
+                    grads['gamma' + str(i)] = dgamma
+                    grads['beta' + str(i)] = dbeta
 
-        dscores, dW, db = affine_backward(dscores, caches.pop())
+            dscores, dW, db = affine_backward(dscores, caches.pop())
 
-        grads['W' + str(i)] = dW + self.reg * self.params['W' + str(i)]
-        grads['b' + str(i)] = db
+            grads['W' + str(i)] = dW + self.reg * self.params['W' + str(i)]
+            grads['b' + str(i)] = db
 
-        loss += 0.5 * self.reg * np.sum(self.params['W' + str(i)]**2)
+            loss += 0.5 * self.reg * np.sum(self.params['W' + str(i)]**2)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
