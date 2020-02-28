@@ -74,4 +74,4 @@ class CircleNet(nn.Module):
 ```
 
 ### Results
-![Example](https://raw.githubusercontent.com/eidoil32/Deep-Learning---MTA-Course/master/example.jpg)
+![Example](https://raw.githubusercontent.com/eidoil32/Deep-Learning---MTA-Course/master/example.png)
